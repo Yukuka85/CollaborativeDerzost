@@ -15,20 +15,35 @@ const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 async function redisGet(key) {
   if (!REDIS_URL) return null;
-  const res = await fetch(`${REDIS_URL}/get/${encodeURIComponent(key)}`, {
-    headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
-  });
-  const data = await res.json();
-  return data.result ? JSON.parse(data.result) : null;
+  try {
+    const res = await fetch(`${REDIS_URL}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['GET', key])
+    });
+    const data = await res.json();
+    if (data.error) { console.error('Redis GET error:', data.error); return null; }
+    return data.result ? JSON.parse(data.result) : null;
+  } catch (e) {
+    console.error('Redis GET failed:', e.message);
+    return null;
+  }
 }
 
 async function redisSet(key, value) {
   if (!REDIS_URL) return;
-  await fetch(`${REDIS_URL}/set/${encodeURIComponent(key)}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(JSON.stringify(value))
-  });
+  try {
+    const res = await fetch(`${REDIS_URL}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['SET', key, JSON.stringify(value)])
+    });
+    const data = await res.json();
+    if (data.error) console.error('Redis SET error:', data.error);
+    else console.log('Redis saved:', key, '(' + value.people.length + ' people)');
+  } catch (e) {
+    console.error('Redis SET failed:', e.message);
+  }
 }
 
 // --- Room storage (in-memory cache + Redis persistence) ---
@@ -40,9 +55,11 @@ async function getOrCreateRoom(roomId) {
   // Try loading from Redis
   const saved = await redisGet(`room:${roomId}`);
   if (saved) {
+    console.log('Redis loaded room:', roomId, '(' + saved.people.length + ' people)');
     rooms.set(roomId, saved);
     return saved;
   }
+  console.log('Creating new room:', roomId);
 
   const room = {
     axes: {

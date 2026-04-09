@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Расставь коллег</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+  height: 100dvh;
+  width: 100vw;
+  background: #fafafa;
+  touch-action: none;
+}
+
+#chart {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Axes */
+.axis-h, .axis-v {
+  position: absolute;
+  background: #d0d0d0;
+}
+.axis-h {
+  left: 40px; right: 40px;
+  top: 50%; height: 2px;
+  transform: translateY(-1px);
+}
+.axis-v {
+  top: 40px; bottom: 80px;
+  left: 50%; width: 2px;
+  transform: translateX(-1px);
+}
+
+/* Axis labels */
+.axis-label {
+  position: absolute;
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  background: #fafafa;
+  padding: 2px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+  z-index: 10;
+}
+.axis-label:hover { background: #f0f0f0; }
+.label-left { left: 12px; top: 50%; transform: translateY(-50%); }
+.label-right { right: 12px; top: 50%; transform: translateY(-50%); }
+.label-top { top: 12px; left: 50%; transform: translateX(-50%); }
+.label-bottom { bottom: 60px; left: 50%; transform: translateX(-50%); }
+
+/* Person avatar */
+.person {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: grab;
+  z-index: 20;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.person.dragging {
+  cursor: grabbing;
+  z-index: 100;
+}
+.person.dragging .avatar {
+  transform: scale(1.15);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: white;
+  font-weight: 700;
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+.person-name {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #333;
+  background: rgba(255,255,255,0.85);
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vote-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: #333;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  padding: 0 3px;
+}
+.person .remove-btn {
+  display: none;
+  position: absolute;
+  top: -6px; right: -6px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #ff4444;
+  color: white;
+  border: 2px solid white;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 30;
+}
+.person:hover .remove-btn { display: block; }
+
+/* Vote ghost — shows YOUR vote position as a small dot */
+.vote-ghost {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 15;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* Vote line — connects ghost to average */
+.vote-line {
+  position: absolute;
+  height: 2px;
+  transform-origin: 0 50%;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 14;
+}
+
+/* Toolbar */
+#toolbar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 200;
+}
+#toolbar button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  transition: background 0.15s;
+}
+#btn-add-self {
+  background: #4a90d9;
+  color: white;
+}
+#btn-add-self:hover { background: #3a7bc8; }
+#btn-add-other {
+  background: white;
+  color: #333;
+  border: 1px solid #ddd;
+}
+#btn-add-other:hover { background: #f5f5f5; }
+#btn-share {
+  background: white;
+  color: #333;
+  border: 1px solid #ddd;
+}
+#btn-share:hover { background: #f5f5f5; }
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  width: min(360px, 90vw);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+}
+.modal h3 {
+  font-size: 18px;
+  margin-bottom: 16px;
+  color: #333;
+}
+.modal input[type="text"] {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 15px;
+  outline: none;
+  margin-bottom: 12px;
+}
+.modal input:focus { border-color: #4a90d9; }
+.color-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.color-opt {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.color-opt.selected { border-color: #333; }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.modal-actions button {
+  padding: 8px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+.btn-cancel { background: #eee; color: #555; }
+.btn-confirm { background: #4a90d9; color: white; }
+
+/* Toast */
+#toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-80px);
+  background: #333;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  z-index: 600;
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+/* Room info */
+#room-info {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  font-size: 12px;
+  color: #999;
+  z-index: 10;
+}
+
+/* Online count */
+#online {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  font-size: 12px;
+  color: #999;
+  z-index: 10;
+}
+#online::before {
+  content: '';
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #4caf50;
+  margin-right: 4px;
+}
+
+/* Axis edit input */
+.axis-edit-input {
+  font-size: 14px;
+  font-weight: 600;
+  border: 2px solid #4a90d9;
+  border-radius: 4px;
+  padding: 2px 8px;
+  outline: none;
+  width: 120px;
+  text-align: center;
+}
+
+/* Smooth position animation for average snapping */
+.person.snap-animate {
+  transition: left 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              top 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+</style>
+</head>
+<body>
+
+<div id="chart">
+  <div class="axis-h"></div>
+  <div class="axis-v"></div>
+  <div class="axis-label label-left" id="label-left" data-axis="left">Дерзкая</div>
+  <div class="axis-label label-right" id="label-right" data-axis="right">Милая</div>
+  <div class="axis-label label-top" id="label-top" data-axis="top">Открытая</div>
+  <div class="axis-label label-bottom" id="label-bottom" data-axis="bottom">Закрытая</div>
+</div>
+
+<div id="toolbar">
+  <button id="btn-add-self">+ Добавить себя</button>
+  <button id="btn-add-other">+ Коллегу</button>
+  <button id="btn-share">Поделиться</button>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">Добавить участника</h3>
+    <input type="text" id="input-name" placeholder="Имя" maxlength="20" autocomplete="off">
+    <div class="color-picker" id="color-picker"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="btn-modal-cancel">Отмена</button>
+      <button class="btn-confirm" id="btn-modal-confirm">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="room-info"></div>
+<div id="online"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function() {
+  const COLORS = [
+    '#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c',
+    '#3498db','#9b59b6','#e84393','#636e72','#2d3436'
+  ];
+
+  const chart = document.getElementById('chart');
+  const socket = io();
+  let selectedColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+  let people = [];
+  let axes = {};
+  let dragState = null;
+
+  // --- Voter identity (persisted in localStorage) ---
+  let voterId = localStorage.getItem('chart-voter-id');
+  if (!voterId) {
+    voterId = crypto.randomUUID();
+    localStorage.setItem('chart-voter-id', voterId);
+  }
+
+  // --- Room ---
+  const params = new URLSearchParams(location.search);
+  let roomId = params.get('room');
+  if (!roomId) {
+    location.href = '/new';
+    return;
+  }
+  document.getElementById('room-info').textContent = `#${roomId}`;
+  socket.emit('join-room', roomId);
+
+  // --- Socket events ---
+  socket.on('sync-state', (state) => {
+    axes = state.axes;
+    people = state.people;
+    updateAxes();
+    renderAll();
+  });
+
+  socket.on('person-added', (person) => {
+    people.push(person);
+    renderPerson(person);
+  });
+
+  socket.on('person-voted', ({ personId, voterId: vid, voteX, voteY, avgX, avgY, voteCount, votes }) => {
+    const p = people.find(pp => pp.id === personId);
+    if (!p) return;
+    p.x = avgX;
+    p.y = avgY;
+    p.voteCount = voteCount;
+    p.votes = votes;
+
+    const el = document.getElementById('p-' + personId);
+    if (el && !(dragState && dragState.id === personId)) {
+      el.classList.add('snap-animate');
+      positionEl(el, avgX, avgY);
+      setTimeout(() => el.classList.remove('snap-animate'), 450);
+    }
+
+    updateBadge(personId, voteCount);
+    updateGhost(personId, p);
+  });
+
+  socket.on('person-removed', (id) => {
+    people = people.filter(p => p.id !== id);
+    const el = document.getElementById('p-' + id);
+    if (el) el.remove();
+    // Remove ghost & line
+    const ghost = document.getElementById('ghost-' + id);
+    if (ghost) ghost.remove();
+    const line = document.getElementById('line-' + id);
+    if (line) line.remove();
+  });
+
+  socket.on('axes-updated', (newAxes) => {
+    axes = newAxes;
+    updateAxes();
+  });
+
+  // --- Render ---
+  function renderAll() {
+    document.querySelectorAll('.person, .vote-ghost, .vote-line').forEach(el => el.remove());
+    people.forEach(renderPerson);
+  }
+
+  function renderPerson(p) {
+    const el = document.createElement('div');
+    el.className = 'person';
+    el.id = 'p-' + p.id;
+
+    const initials = p.name.slice(0, 2).toUpperCase();
+    const vc = p.voteCount || 0;
+    el.innerHTML = `
+      <div class="remove-btn" data-id="${p.id}">&times;</div>
+      <div class="avatar" style="background:${p.color}">
+        ${initials}
+        ${vc > 0 ? `<div class="vote-badge">${vc}</div>` : ''}
+      </div>
+      <div class="person-name">${esc(p.name)}</div>
+    `;
+    chart.appendChild(el);
+    positionEl(el, p.x, p.y);
+    setupDrag(el, p.id);
+
+    el.querySelector('.remove-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      socket.emit('remove-person', p.id);
+    });
+
+    // Draw ghost for my vote if exists
+    updateGhost(p.id, p);
+  }
+
+  function updateBadge(personId, count) {
+    const el = document.getElementById('p-' + personId);
+    if (!el) return;
+    let badge = el.querySelector('.vote-badge');
+    if (count > 0) {
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'vote-badge';
+        el.querySelector('.avatar').appendChild(badge);
+      }
+      badge.textContent = count;
+    } else if (badge) {
+      badge.remove();
+    }
+  }
+
+  function updateGhost(personId, p) {
+    const myVote = p.votes && p.votes[voterId];
+    let ghost = document.getElementById('ghost-' + personId);
+    let line = document.getElementById('line-' + personId);
+
+    if (!myVote || (p.voteCount || 0) <= 1) {
+      // No ghost needed if only 1 vote or no vote from me
+      if (ghost) ghost.remove();
+      if (line) line.remove();
+      return;
+    }
+
+    // Create or update ghost
+    if (!ghost) {
+      ghost = document.createElement('div');
+      ghost.className = 'vote-ghost';
+      ghost.id = 'ghost-' + personId;
+      ghost.style.background = p.color;
+      chart.appendChild(ghost);
+    }
+    const gx = window.innerWidth * myVote.x - 8;
+    const gy = window.innerHeight * myVote.y - 8;
+    ghost.style.left = gx + 'px';
+    ghost.style.top = gy + 'px';
+
+    // Create or update line
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'vote-line';
+      line.id = 'line-' + personId;
+      line.style.background = p.color;
+      chart.appendChild(line);
+    }
+    const ax = window.innerWidth * p.x;
+    const ay = window.innerHeight * p.y;
+    const vx = window.innerWidth * myVote.x;
+    const vy = window.innerHeight * myVote.y;
+    const dx = vx - ax;
+    const dy = vy - ay;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx);
+    line.style.left = ax + 'px';
+    line.style.top = ay + 'px';
+    line.style.width = dist + 'px';
+    line.style.transform = `rotate(${angle}rad)`;
+  }
+
+  function positionEl(el, x, y) {
+    const cx = window.innerWidth * x;
+    const cy = window.innerHeight * y;
+    el.style.left = (cx - 28) + 'px';
+    el.style.top = (cy - 28) + 'px';
+  }
+
+  function moveDom(id, x, y) {
+    const el = document.getElementById('p-' + id);
+    if (el) positionEl(el, x, y);
+  }
+
+  // --- Drag ---
+  function setupDrag(el, id) {
+    const start = (ex, ey) => {
+      el.classList.add('dragging');
+      el.classList.remove('snap-animate');
+      dragState = {
+        id,
+        el,
+        offsetX: ex - el.getBoundingClientRect().left - 28,
+        offsetY: ey - el.getBoundingClientRect().top - 28
+      };
+    };
+
+    el.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('remove-btn')) return;
+      e.preventDefault();
+      start(e.clientX, e.clientY);
+    });
+
+    el.addEventListener('touchstart', (e) => {
+      if (e.target.classList.contains('remove-btn')) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      start(t.clientX, t.clientY);
+    }, { passive: false });
+  }
+
+  function onMove(cx, cy) {
+    if (!dragState) return;
+    const x = (cx - dragState.offsetX) / window.innerWidth;
+    const y = (cy - dragState.offsetY) / window.innerHeight;
+    const clampedX = Math.max(0.03, Math.min(0.97, x));
+    const clampedY = Math.max(0.03, Math.min(0.97, y));
+    // While dragging, show the avatar at drag position (your vote preview)
+    positionEl(dragState.el, clampedX, clampedY);
+  }
+
+  function onEnd() {
+    if (!dragState) return;
+    const el = dragState.el;
+    const id = dragState.id;
+
+    // Get final position from element
+    const rect = el.getBoundingClientRect();
+    const x = (rect.left + 28) / window.innerWidth;
+    const y = (rect.top + 28) / window.innerHeight;
+    const clampedX = Math.max(0.03, Math.min(0.97, x));
+    const clampedY = Math.max(0.03, Math.min(0.97, y));
+
+    // Send vote
+    socket.emit('vote-person', {
+      personId: id,
+      voterId: voterId,
+      x: clampedX,
+      y: clampedY
+    });
+
+    el.classList.remove('dragging');
+    dragState = null;
+  }
+
+  document.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+  document.addEventListener('mouseup', onEnd);
+  document.addEventListener('touchmove', (e) => {
+    if (dragState) {
+      e.preventDefault();
+      onMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: false });
+  document.addEventListener('touchend', onEnd);
+  document.addEventListener('touchcancel', onEnd);
+
+  // --- Resize ---
+  window.addEventListener('resize', () => {
+    people.forEach(p => {
+      moveDom(p.id, p.x, p.y);
+      updateGhost(p.id, p);
+    });
+  });
+
+  // --- Modal ---
+  const overlay = document.getElementById('modal-overlay');
+  const inputName = document.getElementById('input-name');
+  const colorPicker = document.getElementById('color-picker');
+  let modalMode = 'self';
+
+  COLORS.forEach(c => {
+    const btn = document.createElement('div');
+    btn.className = 'color-opt' + (c === selectedColor ? ' selected' : '');
+    btn.style.background = c;
+    btn.addEventListener('click', () => {
+      colorPicker.querySelectorAll('.color-opt').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedColor = c;
+    });
+    colorPicker.appendChild(btn);
+  });
+
+  function openModal(mode) {
+    modalMode = mode;
+    document.getElementById('modal-title').textContent =
+      mode === 'self' ? 'Добавить себя' : 'Добавить коллегу';
+    inputName.value = '';
+    overlay.classList.add('active');
+    setTimeout(() => inputName.focus(), 100);
+  }
+
+  function closeModal() {
+    overlay.classList.remove('active');
+  }
+
+  function addPerson() {
+    const name = inputName.value.trim();
+    if (!name) return;
+    const person = {
+      name,
+      color: selectedColor,
+      x: 0.45 + Math.random() * 0.1,
+      y: 0.45 + Math.random() * 0.1
+    };
+    socket.emit('add-person', person);
+    closeModal();
+  }
+
+  document.getElementById('btn-add-self').addEventListener('click', () => openModal('self'));
+  document.getElementById('btn-add-other').addEventListener('click', () => openModal('other'));
+  document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
+  document.getElementById('btn-modal-confirm').addEventListener('click', addPerson);
+  inputName.addEventListener('keydown', (e) => { if (e.key === 'Enter') addPerson(); });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+  // --- Share ---
+  document.getElementById('btn-share').addEventListener('click', () => {
+    const url = location.href;
+    if (navigator.share) {
+      navigator.share({ title: 'Расставь коллег', url });
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => showToast('Ссылка скопирована!'));
+    } else {
+      showToast(url);
+    }
+  });
+
+  // --- Axis editing ---
+  document.querySelectorAll('.axis-label').forEach(label => {
+    label.addEventListener('click', () => {
+      const axis = label.dataset.axis;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'axis-edit-input';
+      input.value = label.textContent;
+      input.maxLength = 20;
+      label.textContent = '';
+      label.appendChild(input);
+      input.focus();
+      input.select();
+
+      const save = () => {
+        const val = input.value.trim() || axes[axis];
+        label.textContent = val;
+        axes[axis] = val;
+        socket.emit('update-axes', axes);
+      };
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') input.blur();
+        if (e.key === 'Escape') { input.value = axes[axis]; input.blur(); }
+      });
+    });
+  });
+
+  function updateAxes() {
+    document.getElementById('label-left').textContent = axes.left || '';
+    document.getElementById('label-right').textContent = axes.right || '';
+    document.getElementById('label-top').textContent = axes.top || '';
+    document.getElementById('label-bottom').textContent = axes.bottom || '';
+  }
+
+  // --- Toast ---
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  // --- Helpers ---
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+})();
+</script>
+</body>
+</html>

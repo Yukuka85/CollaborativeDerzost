@@ -7,7 +7,8 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static('public'));
+app.use(express.static(__dirname));
+
 
 // In-memory room storage
 const rooms = new Map();

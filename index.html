@@ -143,27 +143,40 @@ body {
 }
 .person:hover .remove-btn { display: block; }
 
-/* Vote ghost — shows YOUR vote position as a small dot */
-.vote-ghost {
+/* Vote dots — shows ALL voters' positions as small dots */
+.vote-dot {
   position: absolute;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  opacity: 0.5;
+  opacity: 0.4;
   pointer-events: none;
   z-index: 15;
   border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  transition: left 0.3s ease, top 0.3s ease;
+}
+.vote-dot.mine {
+  opacity: 0.7;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.25);
 }
 
-/* Vote line — connects ghost to average */
+/* Vote line — connects each dot to average */
 .vote-line {
   position: absolute;
-  height: 2px;
+  height: 1.5px;
   transform-origin: 0 50%;
-  opacity: 0.25;
+  opacity: 0.15;
   pointer-events: none;
   z-index: 14;
+  transition: all 0.3s ease;
+}
+.vote-line.mine {
+  opacity: 0.3;
+  height: 2px;
 }
 
 /* Toolbar */
@@ -186,17 +199,6 @@ body {
   box-shadow: 0 2px 12px rgba(0,0,0,0.15);
   transition: background 0.15s;
 }
-#btn-add-self {
-  background: #4a90d9;
-  color: white;
-}
-#btn-add-self:hover { background: #3a7bc8; }
-#btn-add-other {
-  background: white;
-  color: #333;
-  border: 1px solid #ddd;
-}
-#btn-add-other:hover { background: #f5f5f5; }
 #btn-share {
   background: white;
   color: #333;
@@ -324,6 +326,79 @@ body {
   text-align: center;
 }
 
+/* Top chart button */
+#btn-add {
+  background: #4a90d9;
+  color: white;
+}
+#btn-add:hover { background: #3a7bc8; }
+#btn-top-chart {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+#btn-top-chart:hover { opacity: 0.9; }
+
+/* Top chart modal */
+.topchart-modal {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.nomination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.nomination:last-child { border-bottom: none; }
+.nomination-emoji {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+}
+.nomination-text {
+  flex: 1;
+}
+.nomination-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+}
+.nomination-winner {
+  font-size: 15px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+.nomination-desc {
+  font-size: 11px;
+  color: #999;
+  margin-top: 1px;
+}
+.no-nominations {
+  text-align: center;
+  padding: 24px;
+  color: #999;
+  font-size: 14px;
+}
+
+/* Emoji snowfall */
+.emoji-flake {
+  position: fixed;
+  top: -50px;
+  font-size: 24px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.25;
+  animation: emoji-fall linear forwards;
+}
+@keyframes emoji-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0.25; }
+  10% { opacity: 0.25; }
+  90% { opacity: 0.2; }
+  100% { transform: translateY(calc(100vh + 60px)) rotate(360deg); opacity: 0; }
+}
+
 /* Smooth position animation for average snapping */
 .person.snap-animate {
   transition: left 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
@@ -343,8 +418,8 @@ body {
 </div>
 
 <div id="toolbar">
-  <button id="btn-add-self">+ Добавить себя</button>
-  <button id="btn-add-other">+ Коллегу</button>
+  <button id="btn-add">+ Добавить</button>
+  <button id="btn-top-chart">&#127942; Топ-чарт</button>
   <button id="btn-share">Поделиться</button>
 </div>
 
@@ -356,6 +431,16 @@ body {
     <div class="modal-actions">
       <button class="btn-cancel" id="btn-modal-cancel">Отмена</button>
       <button class="btn-confirm" id="btn-modal-confirm">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="topchart-overlay">
+  <div class="modal topchart-modal">
+    <h3>&#127942; Топ-чарт номинаций</h3>
+    <div id="topchart-list"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="btn-topchart-close">Закрыть</button>
     </div>
   </div>
 </div>
@@ -430,17 +515,15 @@ body {
     }
 
     updateBadge(personId, voteCount);
-    updateGhost(personId, p);
+    updateVoteDots(personId, p);
   });
 
   socket.on('person-removed', (id) => {
     people = people.filter(p => p.id !== id);
     const el = document.getElementById('p-' + id);
     if (el) el.remove();
-    const ghost = document.getElementById('ghost-' + id);
-    if (ghost) ghost.remove();
-    const line = document.getElementById('line-' + id);
-    if (line) line.remove();
+    document.querySelectorAll(`.vdot-${id}`).forEach(e => e.remove());
+    document.querySelectorAll(`.vline-${id}`).forEach(e => e.remove());
     resolveOverlaps();
   });
 
@@ -451,7 +534,7 @@ body {
 
   // --- Render ---
   function renderAll() {
-    document.querySelectorAll('.person, .vote-ghost, .vote-line').forEach(el => el.remove());
+    document.querySelectorAll('.person, .vote-dot, .vote-line').forEach(el => el.remove());
     people.forEach(renderPerson);
   }
 
@@ -480,7 +563,7 @@ body {
     });
 
     // Draw ghost for my vote if exists
-    updateGhost(p.id, p);
+    updateVoteDots(p.id, p);
   }
 
   function updateBadge(personId, count) {
@@ -499,51 +582,52 @@ body {
     }
   }
 
-  function updateGhost(personId, p) {
-    const myVote = p.votes && p.votes[voterId];
-    let ghost = document.getElementById('ghost-' + personId);
-    let line = document.getElementById('line-' + personId);
+  // --- Render ALL vote dots for a person ---
+  function updateVoteDots(personId, p) {
+    if (!p.votes) return;
+    const voters = Object.keys(p.votes);
 
-    if (!myVote || (p.voteCount || 0) <= 1) {
-      // No ghost needed if only 1 vote or no vote from me
-      if (ghost) ghost.remove();
-      if (line) line.remove();
-      return;
-    }
+    // Remove old dots and lines for this person
+    document.querySelectorAll(`.vdot-${personId}`).forEach(el => el.remove());
+    document.querySelectorAll(`.vline-${personId}`).forEach(el => el.remove());
 
-    // Create or update ghost
-    if (!ghost) {
-      ghost = document.createElement('div');
-      ghost.className = 'vote-ghost';
-      ghost.id = 'ghost-' + personId;
-      ghost.style.background = p.color;
-      chart.appendChild(ghost);
-    }
-    const gx = window.innerWidth * myVote.x - 8;
-    const gy = window.innerHeight * myVote.y - 8;
-    ghost.style.left = gx + 'px';
-    ghost.style.top = gy + 'px';
+    // Don't show dots if only 1 vote (no spread to visualize)
+    if (voters.length <= 1) return;
 
-    // Create or update line
-    if (!line) {
-      line = document.createElement('div');
-      line.className = 'vote-line';
-      line.id = 'line-' + personId;
-      line.style.background = p.color;
-      chart.appendChild(line);
-    }
     const ax = window.innerWidth * p.x;
     const ay = window.innerHeight * p.y;
-    const vx = window.innerWidth * myVote.x;
-    const vy = window.innerHeight * myVote.y;
-    const dx = vx - ax;
-    const dy = vy - ay;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx);
-    line.style.left = ax + 'px';
-    line.style.top = ay + 'px';
-    line.style.width = dist + 'px';
-    line.style.transform = `rotate(${angle}rad)`;
+
+    voters.forEach(vid => {
+      const vote = p.votes[vid];
+      const isMine = (vid === voterId);
+      const dotSize = isMine ? 18 : 14;
+
+      // Dot
+      const dot = document.createElement('div');
+      dot.className = `vote-dot vdot-${personId}` + (isMine ? ' mine' : '');
+      dot.style.background = p.color;
+      dot.style.left = (window.innerWidth * vote.x - dotSize / 2) + 'px';
+      dot.style.top = (window.innerHeight * vote.y - dotSize / 2) + 'px';
+      chart.appendChild(dot);
+
+      // Line from dot to average
+      const vx = window.innerWidth * vote.x;
+      const vy = window.innerHeight * vote.y;
+      const dx = vx - ax;
+      const dy = vy - ay;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 5) {
+        const angle = Math.atan2(dy, dx);
+        const line = document.createElement('div');
+        line.className = `vote-line vline-${personId}` + (isMine ? ' mine' : '');
+        line.style.background = p.color;
+        line.style.left = ax + 'px';
+        line.style.top = ay + 'px';
+        line.style.width = dist + 'px';
+        line.style.transform = `rotate(${angle}rad)`;
+        chart.appendChild(line);
+      }
+    });
   }
 
   function positionEl(el, x, y) {
@@ -684,7 +768,7 @@ body {
   window.addEventListener('resize', () => {
     people.forEach(p => {
       moveDom(p.id, p.x, p.y);
-      updateGhost(p.id, p);
+      updateVoteDots(p.id, p);
     });
     resolveOverlaps();
   });
@@ -707,10 +791,8 @@ body {
     colorPicker.appendChild(btn);
   });
 
-  function openModal(mode) {
-    modalMode = mode;
-    document.getElementById('modal-title').textContent =
-      mode === 'self' ? 'Добавить себя' : 'Добавить коллегу';
+  function openModal() {
+    document.getElementById('modal-title').textContent = 'Добавить участника';
     inputName.value = '';
     overlay.classList.add('active');
     setTimeout(() => inputName.focus(), 100);
@@ -733,12 +815,211 @@ body {
     closeModal();
   }
 
-  document.getElementById('btn-add-self').addEventListener('click', () => openModal('self'));
-  document.getElementById('btn-add-other').addEventListener('click', () => openModal('other'));
+  document.getElementById('btn-add').addEventListener('click', openModal);
   document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
   document.getElementById('btn-modal-confirm').addEventListener('click', addPerson);
   inputName.addEventListener('keydown', (e) => { if (e.key === 'Enter') addPerson(); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+  // --- Top Chart ---
+  const topchartOverlay = document.getElementById('topchart-overlay');
+  document.getElementById('btn-top-chart').addEventListener('click', () => {
+    renderTopChart();
+    topchartOverlay.classList.add('active');
+  });
+  document.getElementById('btn-topchart-close').addEventListener('click', () => {
+    topchartOverlay.classList.remove('active');
+  });
+  topchartOverlay.addEventListener('click', (e) => {
+    if (e.target === topchartOverlay) topchartOverlay.classList.remove('active');
+  });
+
+  function renderTopChart() {
+    const list = document.getElementById('topchart-list');
+    if (people.length < 2) {
+      list.innerHTML = '<div class="no-nominations">Добавь хотя бы 2 человека, чтобы увидеть номинации!</div>';
+      return;
+    }
+
+    const nominations = computeNominations();
+    list.innerHTML = nominations.map(n => `
+      <div class="nomination">
+        <div class="nomination-emoji">${n.emoji}</div>
+        <div class="nomination-text">
+          <div class="nomination-title">${n.title}</div>
+          <div class="nomination-winner" style="color:${n.color}">${n.winner}</div>
+          <div class="nomination-desc">${n.desc}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function computeNominations() {
+    const result = [];
+    const scored = people.map(p => {
+      // Normalized: 0=left/top, 1=right/bottom
+      const voteCount = p.voteCount || 0;
+      const voters = p.votes ? Object.keys(p.votes) : [];
+      // Vote spread (standard deviation)
+      let spread = 0;
+      if (voters.length > 1) {
+        const dists = voters.map(v => {
+          const dx = p.votes[v].x - p.x;
+          const dy = p.votes[v].y - p.y;
+          return Math.sqrt(dx*dx + dy*dy);
+        });
+        spread = dists.reduce((a,b) => a+b, 0) / dists.length;
+      }
+      // Distance from center
+      const distCenter = Math.sqrt((p.x - 0.5)**2 + (p.y - 0.5)**2);
+      return { ...p, voteCount, spread, distCenter };
+    });
+
+    const byRight = [...scored].sort((a,b) => b.x - a.x);
+    const byLeft = [...scored].sort((a,b) => a.x - b.x);
+    const byTop = [...scored].sort((a,b) => a.y - b.y);
+    const byBottom = [...scored].sort((a,b) => b.y - a.y);
+    const byVotes = [...scored].sort((a,b) => b.voteCount - a.voteCount);
+    const bySpread = [...scored].sort((a,b) => b.spread - a.spread);
+    const byCenter = [...scored].sort((a,b) => a.distCenter - b.distCenter);
+    const byEdge = [...scored].sort((a,b) => b.distCenter - a.distCenter);
+
+    // Helper: axis label in quotes
+    const ax = (k) => '\u00ab' + (axes[k] || k) + '\u00bb';
+
+    // Right axis
+    result.push({
+      emoji: '\u{1F970}',
+      title: 'Милашка-обояшка утипути',
+      winner: byRight[0].name,
+      color: byRight[0].color,
+      desc: 'Максимум по шкале ' + ax('right') + ' — хочется потискать'
+    });
+
+    // Left axis
+    result.push({
+      emoji: '\u{1F525}',
+      title: 'Входит в двери с ноги',
+      winner: byLeft[0].name,
+      color: byLeft[0].color,
+      desc: 'Максимум по шкале ' + ax('left') + ' — не подходи, убьёт взглядом'
+    });
+
+    // Top axis
+    result.push({
+      emoji: '\u{1F513}',
+      title: 'Ломай меня полностью, слышишь!',
+      winner: byTop[0].name,
+      color: byTop[0].color,
+      desc: 'Максимум по шкале ' + ax('top') + ' — душа нараспашку, карманы наружу'
+    });
+
+    // Bottom axis
+    result.push({
+      emoji: '\u{1F47B}',
+      title: 'Тайна, покрытая мраком',
+      winner: byBottom[0].name,
+      color: byBottom[0].color,
+      desc: 'Максимум по шкале ' + ax('bottom') + ' — что в голове — загадка века'
+    });
+
+    // Most voted
+    if (byVotes[0].voteCount > 0) {
+      const vc = byVotes[0].voteCount;
+      const word = vc === 1 ? 'голос' : vc < 5 ? 'голоса' : 'голосов';
+      result.push({
+        emoji: '\u{1F3AF}',
+        title: 'Вы меня затрогали!',
+        winner: byVotes[0].name,
+        color: byVotes[0].color,
+        desc: vc + ' ' + word + ' — все хотят подвинуть'
+      });
+    }
+
+    // Most spread (disagreement)
+    if (bySpread[0].spread > 0.02) {
+      result.push({
+        emoji: '\u{1F921}',
+        title: 'Человек-загадка',
+        winner: bySpread[0].name,
+        color: bySpread[0].color,
+        desc: 'Максимальный разброс мнений — никто не может определиться'
+      });
+    }
+
+    // Least spread (consensus)
+    const withVotes = scored.filter(s => s.voteCount >= 2);
+    if (withVotes.length > 0) {
+      const byConsensus = withVotes.sort((a,b) => a.spread - b.spread);
+      result.push({
+        emoji: '\u{1F91D}',
+        title: 'Тут всё понятно',
+        winner: byConsensus[0].name,
+        color: byConsensus[0].color,
+        desc: 'Все единогласны — ноль сомнений, попали в точку'
+      });
+    }
+
+    // Closest to center
+    result.push({
+      emoji: '\u{2696}\u{FE0F}',
+      title: 'Золотая середина',
+      winner: byCenter[0].name,
+      color: byCenter[0].color,
+      desc: 'Идеальный баланс — ни туда, ни сюда, дзен-мастер'
+    });
+
+    // Furthest from center
+    result.push({
+      emoji: '\u{1F680}',
+      title: 'На своей волне',
+      winner: byEdge[0].name,
+      color: byEdge[0].color,
+      desc: 'Дальше всех от центра — яркая и неповторимая личность'
+    });
+
+    // Top-right corner
+    const byTopRight = [...scored].sort((a,b) => (b.x - b.y) - (a.x - a.y));
+    result.push({
+      emoji: '\u{1F338}',
+      title: 'Луч света в тёмном царстве',
+      winner: byTopRight[0].name,
+      color: byTopRight[0].color,
+      desc: ax('right') + ' + ' + ax('top') + ' = чистый свет и добро'
+    });
+
+    // Bottom-left corner
+    const byBotLeft = [...scored].sort((a,b) => (a.x + a.y) - (b.x + b.y));
+    result.push({
+      emoji: '\u{1F608}',
+      title: 'Тёмный властелин офиса',
+      winner: byBotLeft[0].name,
+      color: byBotLeft[0].color,
+      desc: ax('left') + ' + ' + ax('bottom') + ' = тёмная сторона силы'
+    });
+
+    // Top-left
+    const byTopLeft = [...scored].sort((a,b) => (a.x - a.y) - (b.x - b.y));
+    result.push({
+      emoji: '\u{26A1}',
+      title: 'Правду-матку в лицо',
+      winner: byTopLeft[0].name,
+      color: byTopLeft[0].color,
+      desc: ax('left') + ' + ' + ax('top') + ' = скажет всё как есть, не моргнув'
+    });
+
+    // Bottom-right
+    const byBotRight = [...scored].sort((a,b) => (b.x + b.y) - (a.x + a.y));
+    result.push({
+      emoji: '\u{1F43E}',
+      title: 'Тихий омут',
+      winner: byBotRight[0].name,
+      color: byBotRight[0].color,
+      desc: ax('right') + ' + ' + ax('bottom') + ' = тихая няшка, но в тихом омуте...'
+    });
+
+    return result;
+  }
 
   // --- Share ---
   document.getElementById('btn-share').addEventListener('click', () => {
@@ -801,6 +1082,20 @@ body {
     d.textContent = s;
     return d.innerHTML;
   }
+
+  // --- Emoji snowfall ---
+  const SNOW_EMOJIS = ['\u{1F4A9}', '\u{1F419}', '\u{2764}\u{FE0F}', '\u{1F9B7}'];
+  function spawnFlake() {
+    const el = document.createElement('div');
+    el.className = 'emoji-flake';
+    el.textContent = SNOW_EMOJIS[Math.floor(Math.random() * SNOW_EMOJIS.length)];
+    el.style.left = (Math.random() * 100) + 'vw';
+    el.style.fontSize = (16 + Math.random() * 20) + 'px';
+    el.style.animationDuration = (6 + Math.random() * 8) + 's';
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+  setInterval(spawnFlake, 800);
 })();
 </script>
 </body>

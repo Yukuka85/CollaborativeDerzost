@@ -9,23 +9,64 @@ const io = new Server(server);
 
 app.use(express.static(__dirname));
 
+// --- Upstash Redis REST API ---
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-// In-memory room storage
+async function redisGet(key) {
+  if (!REDIS_URL) return null;
+  const res = await fetch(`${REDIS_URL}/get/${encodeURIComponent(key)}`, {
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
+  });
+  const data = await res.json();
+  return data.result ? JSON.parse(data.result) : null;
+}
+
+async function redisSet(key, value) {
+  if (!REDIS_URL) return;
+  await fetch(`${REDIS_URL}/set/${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(JSON.stringify(value))
+  });
+}
+
+// --- Room storage (in-memory cache + Redis persistence) ---
 const rooms = new Map();
 
-function getOrCreateRoom(roomId) {
-  if (!rooms.has(roomId)) {
-    rooms.set(roomId, {
-      axes: {
-        left: 'Дерзкая',
-        right: 'Милая',
-        top: 'Открытая',
-        bottom: 'Закрытая'
-      },
-      people: []
-    });
+async function getOrCreateRoom(roomId) {
+  if (rooms.has(roomId)) return rooms.get(roomId);
+
+  // Try loading from Redis
+  const saved = await redisGet(`room:${roomId}`);
+  if (saved) {
+    rooms.set(roomId, saved);
+    return saved;
   }
-  return rooms.get(roomId);
+
+  const room = {
+    axes: {
+      left: 'Дерзкая',
+      right: 'Милая',
+      top: 'Открытая',
+      bottom: 'Закрытая'
+    },
+    people: []
+  };
+  rooms.set(roomId, room);
+  await redisSet(`room:${roomId}`, room);
+  return room;
+}
+
+// Debounced save per room
+const saveTimers = new Map();
+function scheduleSave(roomId) {
+  if (saveTimers.has(roomId)) return;
+  saveTimers.set(roomId, setTimeout(async () => {
+    saveTimers.delete(roomId);
+    const room = rooms.get(roomId);
+    if (room) await redisSet(`room:${roomId}`, room);
+  }, 1000));
 }
 
 function computeAverage(person) {
@@ -41,7 +82,6 @@ function computeAverage(person) {
   person.voteCount = voters.length;
 }
 
-// Serialize room state for clients
 function serializeRoom(room) {
   return {
     axes: room.axes,
@@ -60,26 +100,27 @@ function serializeRoom(room) {
 io.on('connection', (socket) => {
   let currentRoom = null;
 
-  socket.on('join-room', (roomId) => {
+  socket.on('join-room', async (roomId) => {
     currentRoom = roomId;
     socket.join(roomId);
-    const room = getOrCreateRoom(roomId);
+    const room = await getOrCreateRoom(roomId);
     socket.emit('sync-state', serializeRoom(room));
   });
 
-  socket.on('add-person', (person) => {
+  socket.on('add-person', async (person) => {
     if (!currentRoom) return;
-    const room = getOrCreateRoom(currentRoom);
+    const room = await getOrCreateRoom(currentRoom);
     person.id = crypto.randomUUID();
     person.votes = {};
     person.voteCount = 0;
     room.people.push(person);
     io.to(currentRoom).emit('person-added', person);
+    scheduleSave(currentRoom);
   });
 
-  socket.on('vote-person', ({ personId, voterId, x, y }) => {
+  socket.on('vote-person', async ({ personId, voterId, x, y }) => {
     if (!currentRoom) return;
-    const room = getOrCreateRoom(currentRoom);
+    const room = await getOrCreateRoom(currentRoom);
     const person = room.people.find(p => p.id === personId);
     if (!person) return;
     person.votes[voterId] = { x, y };
@@ -94,24 +135,26 @@ io.on('connection', (socket) => {
       voteCount: person.voteCount,
       votes: person.votes
     });
+    scheduleSave(currentRoom);
   });
 
-  socket.on('remove-person', (id) => {
+  socket.on('remove-person', async (id) => {
     if (!currentRoom) return;
-    const room = getOrCreateRoom(currentRoom);
+    const room = await getOrCreateRoom(currentRoom);
     room.people = room.people.filter(p => p.id !== id);
     io.to(currentRoom).emit('person-removed', id);
+    scheduleSave(currentRoom);
   });
 
-  socket.on('update-axes', (axes) => {
+  socket.on('update-axes', async (axes) => {
     if (!currentRoom) return;
-    const room = getOrCreateRoom(currentRoom);
+    const room = await getOrCreateRoom(currentRoom);
     room.axes = axes;
     socket.to(currentRoom).emit('axes-updated', axes);
+    scheduleSave(currentRoom);
   });
 });
 
-// Create new room endpoint
 app.get('/new', (req, res) => {
   const roomId = crypto.randomBytes(4).toString('hex');
   res.redirect(`/?room=${roomId}`);
@@ -120,4 +163,5 @@ app.get('/new', (req, res) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Redis: ${REDIS_URL ? 'connected' : 'not configured (in-memory only)'}`);
 });

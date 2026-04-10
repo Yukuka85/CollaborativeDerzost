@@ -61,12 +61,13 @@ async function getOrCreateRoom(roomId) {
   }
   console.log('Creating new room:', roomId);
 
+  const isDemo = (roomId === 'demo');
   const room = {
     axes: {
-      left: 'Дерзкая',
-      right: 'Милая',
-      top: 'Открытая',
-      bottom: 'Закрытая'
+      left: isDemo ? 'Не в зуб ногой' : 'Дерзкая',
+      right: isDemo ? 'Разбираюсь в AI' : 'Милая',
+      top: isDemo ? 'Альфа' : 'Открытая',
+      bottom: isDemo ? 'Бумер' : 'Закрытая'
     },
     people: []
   };
@@ -175,6 +176,10 @@ io.on('connection', (socket) => {
 app.get('/new', (req, res) => {
   const roomId = crypto.randomBytes(4).toString('hex');
   res.redirect(`/?room=${roomId}`);
+});
+
+app.get('/demo', (req, res) => {
+  res.redirect('/?room=demo');
 });
 
 const PORT = process.env.PORT || 3000;

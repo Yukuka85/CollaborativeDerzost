@@ -376,6 +376,21 @@ body {
   color: #999;
   margin-top: 1px;
 }
+.cert-btn {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid #e0e0e0;
+  background: white;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.cert-btn:hover { background: #f0f0f0; }
+
 .no-nominations {
   text-align: center;
   padding: 24px;
@@ -843,7 +858,7 @@ body {
     }
 
     const nominations = computeNominations();
-    list.innerHTML = nominations.map(n => `
+    list.innerHTML = nominations.map((n, i) => `
       <div class="nomination">
         <div class="nomination-emoji">${n.emoji}</div>
         <div class="nomination-text">
@@ -851,8 +866,74 @@ body {
           <div class="nomination-winner" style="color:${n.color}">${n.winner}</div>
           <div class="nomination-desc">${n.desc}</div>
         </div>
+        <button class="cert-btn" data-idx="${i}" title="Скачать грамоту">\u{1F4DC}</button>
       </div>
     `).join('');
+
+    // Bind certificate buttons
+    list.querySelectorAll('.cert-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const n = nominations[+btn.dataset.idx];
+        showCertificate(n);
+      });
+    });
+  }
+
+  // --- Certificate as HTML popup ---
+  function showCertificate(nom) {
+    const today = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+    const certWin = window.open('', '_blank', 'width=700,height=500');
+    certWin.document.write(`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Грамота — ${nom.winner}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; background: #f5f0eb;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .cert {
+    width: 640px; background: linear-gradient(135deg, #fdf6f0, #f0e6ff);
+    border: 6px solid #d4a853; border-radius: 8px; padding: 48px 40px;
+    text-align: center; position: relative;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+  }
+  .cert::before {
+    content: ''; position: absolute; inset: 8px;
+    border: 2px solid #e8c97a; border-radius: 4px; pointer-events: none;
+  }
+  .cert-header { color: #8b6914; font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+  .cert-sub { color: #888; font-size: 16px; margin-bottom: 20px; }
+  .cert-name { font-size: 44px; font-weight: 800; color: ${nom.color}; margin-bottom: 6px; }
+  .cert-line { width: 200px; height: 3px; background: ${nom.color}; opacity: 0.3; margin: 0 auto 20px; border-radius: 2px; }
+  .cert-for { color: #888; font-size: 16px; margin-bottom: 16px; }
+  .cert-emoji { font-size: 64px; margin-bottom: 12px; }
+  .cert-title { font-size: 26px; font-weight: 700; color: #333; margin-bottom: 10px; }
+  .cert-desc { font-size: 15px; color: #999; font-style: italic; margin-bottom: 28px; }
+  .cert-ornament { width: 300px; height: 2px; background: #d4a853; margin: 0 auto 16px; border-radius: 1px; }
+  .cert-date { color: #bbb; font-size: 13px; }
+  .cert-corner { position: absolute; width: 16px; height: 16px; border: 3px solid #d4a853; border-radius: 50%; }
+  .c-tl { top: 18px; left: 18px; } .c-tr { top: 18px; right: 18px; }
+  .c-bl { bottom: 18px; left: 18px; } .c-br { bottom: 18px; right: 18px; }
+  @media print { body { background: white; } .cert { box-shadow: none; } }
+</style></head>
+<body>
+  <div class="cert">
+    <div class="cert-corner c-tl"></div><div class="cert-corner c-tr"></div>
+    <div class="cert-corner c-bl"></div><div class="cert-corner c-br"></div>
+    <div class="cert-header">\u{1F3C6} ГРАМОТА \u{1F3C6}</div>
+    <div class="cert-sub">Настоящим удостоверяется, что</div>
+    <div class="cert-name">${nom.winner}</div>
+    <div class="cert-line"></div>
+    <div class="cert-for">получает почётное звание</div>
+    <div class="cert-emoji">${nom.emoji}</div>
+    <div class="cert-title">${nom.title}</div>
+    <div class="cert-desc">\u00ab${nom.desc}\u00bb</div>
+    <div class="cert-ornament"></div>
+    <div class="cert-date">${today}</div>
+  </div>
+</body></html>`);
+    certWin.document.close();
   }
 
   // --- Random nomination titles ---

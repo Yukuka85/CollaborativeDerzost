@@ -1032,17 +1032,6 @@ body {
 
     const byBotRight = [...scored].sort((a,b) => (b.x + b.y) - (a.x + a.y));  // max x, max y
     nom('botRight', byBotRight[0], ax('right') + ' + ' + ax('bottom') + ' = ' + pick(TITLES.botRight).d);
-    });
-
-    // Bottom-right
-    const byBotRight = [...scored].sort((a,b) => (b.x + b.y) - (a.x + a.y));
-    result.push({
-      emoji: '\u{1F43E}',
-      title: 'Тихий омут',
-      winner: byBotRight[0].name,
-      color: byBotRight[0].color,
-      desc: ax('right') + ' + ' + ax('bottom') + ' = тихая няшка, но в тихом омуте...'
-    });
 
     return result;
   }

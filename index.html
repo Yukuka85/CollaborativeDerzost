@@ -855,13 +855,114 @@ body {
     `).join('');
   }
 
+  // --- Random nomination titles ---
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  const TITLES = {
+    right: [
+      {e:'\u{1F970}', t:'Милашка-обояшка утипути', d:'хочется потискать'},
+      {e:'\u{1F36D}', t:'Сахарная вата в человеческом обличии', d:'сладкий до невозможности'},
+      {e:'\u{1F917}', t:'Профессиональный обнимашник', d:'обнимет и не отпустит'},
+      {e:'\u{1F48A}', t:'Ходячий антидепрессант', d:'рядом и уже легче'},
+      {e:'\u{1F9F8}', t:'Плюшевый мишка команды', d:'мягкий, тёплый, свой'},
+      {e:'\u{2728}', t:'Национальное достояние милоты', d:'охраняется государством'},
+    ],
+    left: [
+      {e:'\u{1F525}', t:'Входит в двери с ноги', d:'не подходи, убьёт взглядом'},
+      {e:'\u{1F98D}', t:'Укротитель хаоса', d:'хаос сам его боится'},
+      {e:'\u{2694}\u{FE0F}', t:'Генерал дерзости', d:'рождён командовать'},
+      {e:'\u{1F4A5}', t:'Не буди лихо', d:'пока тихо... но это ненадолго'},
+      {e:'\u{1F9CA}', t:'Бронежилет в человеческом обличии', d:'ничего не пробьёт'},
+      {e:'\u{1F405}', t:'Тигр в овечьей шкуре', d:'хотя какая шкура, все видят'},
+    ],
+    top: [
+      {e:'\u{1F513}', t:'Ломай меня полностью, слышишь!', d:'душа нараспашку, карманы наружу'},
+      {e:'\u{1F4D6}', t:'Книга, открытая на все страницы', d:'читается с первого взгляда'},
+      {e:'\u{1F50A}', t:'Душа нараспашку 24/7', d:'без выходных и перерывов'},
+      {e:'\u{1F3A4}', t:'Человек без секретов', d:'расскажет всё, даже если не спрашивали'},
+      {e:'\u{1FA9F}', t:'Прозрачнее стекла', d:'видно насквозь и это прекрасно'},
+      {e:'\u{1F30D}', t:'Душа компании и окрестностей', d:'излучает открытость на километры'},
+    ],
+    bottom: [
+      {e:'\u{1F47B}', t:'Тайна, покрытая мраком', d:'что в голове — загадка века'},
+      {e:'\u{1F512}', t:'За семью печатями', d:'ключ потерян ещё в детстве'},
+      {e:'\u{1F575}\u{FE0F}', t:'Партизан офиса', d:'никто не знает план'},
+      {e:'\u{1F574}\u{FE0F}', t:'Секретный агент 007', d:'лицензия на молчание'},
+      {e:'\u{1F311}', t:'Тёмная сторона луны', d:'мы видим только 50%'},
+      {e:'\u{1F910}', t:'Молчание — золото', d:'и этот человек очень богат'},
+    ],
+    voted: [
+      {e:'\u{1F3AF}', t:'Вы меня затрогали!', d:'все хотят подвинуть'},
+      {e:'\u{1F9F2}', t:'Магнит для рук', d:'невозможно не передвинуть'},
+      {e:'\u{1F451}', t:'VIP-персона графика', d:'максимум внимания'},
+      {e:'\u{1F3C3}', t:'Самый перемещаемый объект', d:'не сидится на месте'},
+      {e:'\u{1F4AB}', t:'Звезда вечера', d:'все только о нём и думают'},
+    ],
+    spread: [
+      {e:'\u{1F921}', t:'Человек-загадка', d:'никто не может определиться'},
+      {e:'\u{1F52E}', t:'Мнения разошлись как в море корабли', d:'кто прав — неизвестно'},
+      {e:'\u{1F4A2}', t:'Раскол в рядах', d:'гражданская война мнений'},
+      {e:'\u{1F914}', t:'О чём мы вообще спорим?', d:'каждый видит своё'},
+      {e:'\u{1F408}', t:'Шрёдингеров коллега', d:'одновременно везде и нигде'},
+      {e:'\u{1F32A}\u{FE0F}', t:'Торнадо мнений', d:'разброс эпических масштабов'},
+    ],
+    consensus: [
+      {e:'\u{1F91D}', t:'Тут всё понятно', d:'ноль сомнений, попали в точку'},
+      {e:'\u{2705}', t:'Единогласно!', d:'такое бывает раз в жизни'},
+      {e:'\u{1F4CD}', t:'Прибит гвоздями', d:'точка не обсуждается'},
+      {e:'\u{1F9ED}', t:'Математически доказано', d:'наука не врёт'},
+      {e:'\u{1F3AF}', t:'Попали в яблочко', d:'все в одну точку, невероятно'},
+    ],
+    center: [
+      {e:'\u{2696}\u{FE0F}', t:'Золотая середина', d:'ни туда, ни сюда, дзен-мастер'},
+      {e:'\u{1F9D8}', t:'Дзен-мастер офиса', d:'идеальное равновесие'},
+      {e:'\u{1FA84}', t:'Нейтральная полоса', d:'Швейцария в мире коллег'},
+      {e:'\u{262F}\u{FE0F}', t:'Инь и Ян в одном лице', d:'баланс тьмы и света'},
+      {e:'\u{1F3AF}', t:'Точка равновесия', d:'если убрать — всё рухнет'},
+    ],
+    edge: [
+      {e:'\u{1F680}', t:'На своей волне', d:'яркая и неповторимая личность'},
+      {e:'\u{1F30C}', t:'Улетел в свою галактику', d:'где-то далеко, но мы любим'},
+      {e:'\u{1F3C4}', t:'Экстремал графика', d:'максимально далеко от нормы'},
+      {e:'\u{2B50}', t:'Далёкая звезда', d:'светит ярко, но далеко'},
+      {e:'\u{1F3D4}\u{FE0F}', t:'На вершине (или в пропасти)', d:'точно не в центре'},
+      {e:'\u{1F6F8}', t:'В своей вселенной', d:'остальные завидуют'},
+    ],
+    topRight: [
+      {e:'\u{1F338}', t:'Луч света в тёмном царстве', d:'чистый свет и добро'},
+      {e:'\u{1F984}', t:'Единорог офиса', d:'существует — и это чудо'},
+      {e:'\u{2600}\u{FE0F}', t:'Солнышко в человеческом обличии', d:'греет всех вокруг'},
+      {e:'\u{1F308}', t:'Радуга после дождя', d:'появляется — и всем хорошо'},
+      {e:'\u{1F43B}\u{200D}\u{2744}\u{FE0F}', t:'Главный по обнимашкам', d:'не убежишь'},
+    ],
+    botLeft: [
+      {e:'\u{1F608}', t:'Тёмный властелин офиса', d:'тёмная сторона силы'},
+      {e:'\u{1F987}', t:'Бэтмен нашего офиса', d:'герой, но в тени'},
+      {e:'\u{1F3B4}', t:'Джокер в колоде', d:'никогда не знаешь чего ждать'},
+      {e:'\u{1F577}\u{FE0F}', t:'Загадочный антигерой', d:'опасно и непонятно'},
+      {e:'\u{1F30C}', t:'Тёмная лошадка', d:'ставки принимаются'},
+    ],
+    topLeft: [
+      {e:'\u{26A1}', t:'Правду-матку в лицо', d:'скажет всё как есть, не моргнув'},
+      {e:'\u{1F4E2}', t:'Живой детектор лжи', d:'врать бесполезно'},
+      {e:'\u{1F525}', t:'Огонь и пламя', d:'горит — и поджигает других'},
+      {e:'\u{1FA93}', t:'Рубит с плеча', d:'думает потом, если вообще думает'},
+      {e:'\u{1F3AF}', t:'Говорит что думает — и это страшно', d:'но уважаемо'},
+    ],
+    botRight: [
+      {e:'\u{1F43E}', t:'Тихий омут', d:'тихая няшка, но в тихом омуте...'},
+      {e:'\u{1F90D}', t:'Скромняга с секретами', d:'мягкий снаружи, загадочный внутри'},
+      {e:'\u{1F54A}\u{FE0F}', t:'Тихая гавань', d:'штиль и покой, но что на дне?'},
+      {e:'\u{1F43F}\u{FE0F}', t:'Няшный шпион', d:'милота как прикрытие'},
+      {e:'\u{1F319}', t:'Лунный свет', d:'нежный, но только по ночам'},
+    ]
+  };
+
   function computeNominations() {
     const result = [];
     const scored = people.map(p => {
-      // Normalized: 0=left/top, 1=right/bottom
       const voteCount = p.voteCount || 0;
       const voters = p.votes ? Object.keys(p.votes) : [];
-      // Vote spread (standard deviation)
       let spread = 0;
       if (voters.length > 1) {
         const dists = voters.map(v => {
@@ -871,7 +972,6 @@ body {
         });
         spread = dists.reduce((a,b) => a+b, 0) / dists.length;
       }
-      // Distance from center
       const distCenter = Math.sqrt((p.x - 0.5)**2 + (p.y - 0.5)**2);
       return { ...p, voteCount, spread, distCenter };
     });
@@ -885,128 +985,53 @@ body {
     const byCenter = [...scored].sort((a,b) => a.distCenter - b.distCenter);
     const byEdge = [...scored].sort((a,b) => b.distCenter - a.distCenter);
 
-    // Helper: axis label in quotes
     const ax = (k) => '\u00ab' + (axes[k] || k) + '\u00bb';
 
-    // Right axis
-    result.push({
-      emoji: '\u{1F970}',
-      title: 'Милашка-обояшка утипути',
-      winner: byRight[0].name,
-      color: byRight[0].color,
-      desc: 'Максимум по шкале ' + ax('right') + ' — хочется потискать'
-    });
+    function nom(cat, winner, descSuffix) {
+      const t = pick(TITLES[cat]);
+      result.push({
+        emoji: t.e,
+        title: t.t,
+        winner: winner.name,
+        color: winner.color,
+        desc: descSuffix ? descSuffix : t.d
+      });
+    }
 
-    // Left axis
-    result.push({
-      emoji: '\u{1F525}',
-      title: 'Входит в двери с ноги',
-      winner: byLeft[0].name,
-      color: byLeft[0].color,
-      desc: 'Максимум по шкале ' + ax('left') + ' — не подходи, убьёт взглядом'
-    });
+    nom('right', byRight[0], 'Максимум по шкале ' + ax('right') + ' — ' + pick(TITLES.right).d);
+    nom('left', byLeft[0], 'Максимум по шкале ' + ax('left') + ' — ' + pick(TITLES.left).d);
+    nom('top', byTop[0], 'Максимум по шкале ' + ax('top') + ' — ' + pick(TITLES.top).d);
+    nom('bottom', byBottom[0], 'Максимум по шкале ' + ax('bottom') + ' — ' + pick(TITLES.bottom).d);
 
-    // Top axis
-    result.push({
-      emoji: '\u{1F513}',
-      title: 'Ломай меня полностью, слышишь!',
-      winner: byTop[0].name,
-      color: byTop[0].color,
-      desc: 'Максимум по шкале ' + ax('top') + ' — душа нараспашку, карманы наружу'
-    });
-
-    // Bottom axis
-    result.push({
-      emoji: '\u{1F47B}',
-      title: 'Тайна, покрытая мраком',
-      winner: byBottom[0].name,
-      color: byBottom[0].color,
-      desc: 'Максимум по шкале ' + ax('bottom') + ' — что в голове — загадка века'
-    });
-
-    // Most voted
     if (byVotes[0].voteCount > 0) {
       const vc = byVotes[0].voteCount;
       const word = vc === 1 ? 'голос' : vc < 5 ? 'голоса' : 'голосов';
-      result.push({
-        emoji: '\u{1F3AF}',
-        title: 'Вы меня затрогали!',
-        winner: byVotes[0].name,
-        color: byVotes[0].color,
-        desc: vc + ' ' + word + ' — все хотят подвинуть'
-      });
+      nom('voted', byVotes[0], vc + ' ' + word + ' — ' + pick(TITLES.voted).d);
     }
 
-    // Most spread (disagreement)
-    if (bySpread[0].spread > 0.02) {
-      result.push({
-        emoji: '\u{1F921}',
-        title: 'Человек-загадка',
-        winner: bySpread[0].name,
-        color: bySpread[0].color,
-        desc: 'Максимальный разброс мнений — никто не может определиться'
-      });
-    }
+    if (bySpread[0].spread > 0.02) nom('spread', bySpread[0]);
 
-    // Least spread (consensus)
     const withVotes = scored.filter(s => s.voteCount >= 2);
     if (withVotes.length > 0) {
       const byConsensus = withVotes.sort((a,b) => a.spread - b.spread);
-      result.push({
-        emoji: '\u{1F91D}',
-        title: 'Тут всё понятно',
-        winner: byConsensus[0].name,
-        color: byConsensus[0].color,
-        desc: 'Все единогласны — ноль сомнений, попали в точку'
-      });
+      nom('consensus', byConsensus[0]);
     }
 
-    // Closest to center
-    result.push({
-      emoji: '\u{2696}\u{FE0F}',
-      title: 'Золотая середина',
-      winner: byCenter[0].name,
-      color: byCenter[0].color,
-      desc: 'Идеальный баланс — ни туда, ни сюда, дзен-мастер'
-    });
+    nom('center', byCenter[0]);
+    nom('edge', byEdge[0]);
 
-    // Furthest from center
-    result.push({
-      emoji: '\u{1F680}',
-      title: 'На своей волне',
-      winner: byEdge[0].name,
-      color: byEdge[0].color,
-      desc: 'Дальше всех от центра — яркая и неповторимая личность'
-    });
+    // Corners (FIXED logic: y=0 is top, y=1 is bottom, x=0 is left, x=1 is right)
+    const byTopRight = [...scored].sort((a,b) => (b.x - b.y) - (a.x - a.y));  // max x, min y
+    nom('topRight', byTopRight[0], ax('right') + ' + ' + ax('top') + ' = ' + pick(TITLES.topRight).d);
 
-    // Top-right corner
-    const byTopRight = [...scored].sort((a,b) => (b.x - b.y) - (a.x - a.y));
-    result.push({
-      emoji: '\u{1F338}',
-      title: 'Луч света в тёмном царстве',
-      winner: byTopRight[0].name,
-      color: byTopRight[0].color,
-      desc: ax('right') + ' + ' + ax('top') + ' = чистый свет и добро'
-    });
+    const byBotLeft = [...scored].sort((a,b) => (a.x - a.y) - (b.x - b.y));   // min x, max y
+    nom('botLeft', byBotLeft[0], ax('left') + ' + ' + ax('bottom') + ' = ' + pick(TITLES.botLeft).d);
 
-    // Bottom-left corner
-    const byBotLeft = [...scored].sort((a,b) => (a.x + a.y) - (b.x + b.y));
-    result.push({
-      emoji: '\u{1F608}',
-      title: 'Тёмный властелин офиса',
-      winner: byBotLeft[0].name,
-      color: byBotLeft[0].color,
-      desc: ax('left') + ' + ' + ax('bottom') + ' = тёмная сторона силы'
-    });
+    const byTopLeft = [...scored].sort((a,b) => (a.x + a.y) - (b.x + b.y));   // min x, min y
+    nom('topLeft', byTopLeft[0], ax('left') + ' + ' + ax('top') + ' = ' + pick(TITLES.topLeft).d);
 
-    // Top-left
-    const byTopLeft = [...scored].sort((a,b) => (a.x - a.y) - (b.x - b.y));
-    result.push({
-      emoji: '\u{26A1}',
-      title: 'Правду-матку в лицо',
-      winner: byTopLeft[0].name,
-      color: byTopLeft[0].color,
-      desc: ax('left') + ' + ' + ax('top') + ' = скажет всё как есть, не моргнув'
+    const byBotRight = [...scored].sort((a,b) => (b.x + b.y) - (a.x + a.y));  // max x, max y
+    nom('botRight', byBotRight[0], ax('right') + ' + ' + ax('bottom') + ' = ' + pick(TITLES.botRight).d);
     });
 
     // Bottom-right

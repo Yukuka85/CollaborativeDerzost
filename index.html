@@ -420,9 +420,85 @@ body {
   transition: left 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
               top 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
+
+/* Fake ad banner */
+#fake-ad {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  background: linear-gradient(90deg, #ff6b35, #ff2d87, #7b2ff7, #00b4d8);
+  background-size: 300% 100%;
+  animation: ad-gradient 8s ease infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+@keyframes ad-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+#fake-ad-text {
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  animation: ad-slide-in 0.5s ease;
+  padding: 0 16px;
+}
+@keyframes ad-slide-in {
+  0% { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+#fake-ad-close {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+#fake-ad-close:hover { background: rgba(255,255,255,0.4); }
+#fake-ad .ad-badge {
+  position: absolute;
+  left: 8px;
+  font-size: 9px;
+  color: rgba(255,255,255,0.5);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+body.has-ad #chart { padding-top: 36px; }
+body.has-ad .label-top { top: 48px; }
+body.has-ad #room-info { top: 48px; }
+body.has-ad #online { top: 48px; }
 </style>
 </head>
 <body>
+
+<div id="fake-ad">
+  <span class="ad-badge">Ad</span>
+  <span id="fake-ad-text"></span>
+  <button id="fake-ad-close">&times;</button>
+</div>
 
 <div id="chart">
   <div class="axis-h"></div>
@@ -1192,6 +1268,81 @@ body {
     el.addEventListener('animationend', () => el.remove());
   }
   setInterval(spawnFlake, 800);
+
+  // --- Fake ad banner ---
+  const AD_SLOGANS = [
+    '🔥 Креативная студия «Дерзость и Милота» — сделаем больно, но красиво',
+    '🐙 Осьминог Креатив — 8 рук, 0 дедлайнов. Звоните!',
+    '💎 Дизайн от бога. Правки от дьявола. Мы работаем с обоими',
+    '🎨 «Пиксель Перфект» — мы двигаем на 1px влево уже 10 лет',
+    '🚀 Стартап «Ещё Одна Правка» — запуск через 2 недели (с 2019 года)',
+    '🧠 Нейро-креатив: наш ИИ рисует, а мы делаем вид что сами',
+    '📊 Агентство «График Судьбы» — расставим всех по местам',
+    '🎪 Цирк «Креатив дю Солей» — клоуны в комплекте, бесплатно',
+    '💅 Студия «Красиво, но непонятно» — наш слоган говорит сам за себя',
+    '🦷 Стоматология «Белый Пиксель» — выравниваем зубы и макеты',
+    '🌈 Агентство полного цикла «Все цвета, кроме того что хочет клиент»',
+    '☕ Кофейня-коворкинг «Дедлайн» — у нас всегда горячо',
+    '🎭 Театр абсурда «Бриф» — каждый день новая пьеса от заказчика',
+    '🔮 Гадалка по брифу — предскажем что хотел клиент (точность 3%)',
+    '🏋️ Фитнес-клуб «Пушим в прод» — качаем нервы, жмём дедлайны',
+    '🎵 Рок-группа «404 Not Found» — мы потеряли макеты, но нашли себя',
+    '🍕 Пиццерия «Итерация» — каждая следующая пицца чуть лучше',
+    '🧊 Морозилка идей «Бэклог» — заморозим и забудем навсегда',
+    '🎰 Казино «Рандомный фидбэк» — угадай что скажет клиент',
+    '🛸 НЛО-студия «Мы не с этой планеты» — и наш дизайн тоже',
+    '🧪 Лаборатория «А давайте попробуем» — 99% экспериментов провалены. Но тот 1%...',
+    '🎓 Академия «Объясни маме чем ты занимаешься» — курсы для креативщиков',
+    '🏰 Замок «Ivory Tower» — мы не слышим ваш фидбэк отсюда',
+    '🦄 Единорог Дизайн — мы тоже не существуем, но красиво же',
+    '🎡 Карусель правок «Ещё кружочек» — бесконечный аттракцион',
+    '🧲 Магнит для правок — притягиваем комментарии с 2015 года',
+    '🍿 Кинотеатр «Презентация» — показываем одно, делаем другое',
+    '🪄 Фокусник «Ctrl+Z» — и вашего дизайна как не бывало!',
+    '🐒 Зоопарк «Обезьянье тестирование» — нажимаем все кнопки',
+    '🎯 Тир «Попади в ЦА» — пока мимо, но мы стараемся',
+    '🧁 Кондитерская «Вкусный UI» — выглядит аппетитно, есть невозможно',
+    '🏄 Сёрф-школа «На волне трендов» — уже упали, но встаём',
+    '📦 «Коробка с сюрпризом» — даже мы не знаем что внутри релиза',
+    '🎻 Оркестр «Продакшн» — каждый играет своё, но звучит... интересно',
+    '🌋 Вулкан Идей — извергаемся раз в квартал, потом спим',
+    '🧯 Пожарная команда «Хотфикс» — тушим то, что сами подожгли',
+  ];
+
+  let adShown = true;
+  const adEl = document.getElementById('fake-ad');
+  const adText = document.getElementById('fake-ad-text');
+  document.body.classList.add('has-ad');
+
+  function showRandomAd() {
+    if (!adShown) return;
+    const slogan = AD_SLOGANS[Math.floor(Math.random() * AD_SLOGANS.length)];
+    adText.style.animation = 'none';
+    void adText.offsetWidth; // reflow
+    adText.style.animation = 'ad-slide-in 0.5s ease';
+    adText.textContent = slogan;
+  }
+
+  showRandomAd();
+  setInterval(showRandomAd, 8000);
+
+  document.getElementById('fake-ad-close').addEventListener('click', () => {
+    adShown = false;
+    adEl.style.display = 'none';
+    document.body.classList.remove('has-ad');
+    // Шутка: через 15 секунд баннер возвращается
+    setTimeout(() => {
+      adShown = true;
+      adEl.style.display = 'flex';
+      document.body.classList.add('has-ad');
+      showRandomAd();
+    }, 15000);
+  });
+
+  adEl.addEventListener('click', (e) => {
+    if (e.target.id === 'fake-ad-close') return;
+    showToast('🐙 Рекламодатель не найден. Попробуйте позже.');
+  });
 })();
 </script>
 </body>

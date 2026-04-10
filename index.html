@@ -338,6 +338,14 @@ body {
   color: white;
 }
 #btn-top-chart:hover { opacity: 0.9; }
+#btn-anon {
+  background: #2d3436;
+  color: white;
+}
+#btn-anon:hover { background: #636e72; }
+#btn-anon.active {
+  background: #00b894;
+}
 
 /* Top chart modal */
 .topchart-modal {
@@ -558,6 +566,7 @@ body.has-ad #online { top: 48px; }
   <button id="btn-add">+ Добавить</button>
   <button id="btn-top-chart">&#127942; Топ-чарт</button>
   <button id="btn-share">Поделиться</button>
+  <button id="btn-anon">🕶 Анон</button>
 </div>
 
 <div class="modal-overlay" id="modal-overlay">
@@ -1388,6 +1397,45 @@ body.has-ad #online { top: 48px; }
   adEl.addEventListener('click', (e) => {
     if (e.target.id === 'fake-ad-close') return;
     showToast('🐙 Рекламодатель не найден. Попробуйте позже.');
+  });
+
+  // --- Anonymize mode ---
+  const FAKE_NAMES = ['Алиса','Борис','Вика','Глеб','Даша','Егор','Жанна','Захар','Инна','Кирилл','Лена','Макс','Нина','Олег','Полина','Рома','Света','Тима','Ульяна','Федя','Хлоя','Шура','Эля','Юра','Яна','Миша','Катя','Дима','Оля','Петя'];
+  let anonMode = false;
+
+  document.getElementById('btn-anon').addEventListener('click', () => {
+    anonMode = !anonMode;
+    const btn = document.getElementById('btn-anon');
+    if (anonMode) {
+      btn.classList.add('active');
+      btn.textContent = '🕶 Снять маски';
+      const shuffled = [...FAKE_NAMES].sort(() => Math.random() - 0.5);
+      let i = 0;
+      document.querySelectorAll('.person').forEach(el => {
+        const nameEl = el.querySelector('.person-name');
+        const avatarEl = el.querySelector('.avatar');
+        // Save originals
+        el.dataset.origName = nameEl.textContent;
+        el.dataset.origInitials = avatarEl.childNodes[0].textContent.trim();
+        // Replace
+        const fakeName = shuffled[i++ % shuffled.length];
+        nameEl.textContent = fakeName;
+        avatarEl.childNodes[0].textContent = '\n        ' + fakeName.slice(0,2).toUpperCase() + '\n        ';
+        avatarEl.style.filter = 'hue-rotate(' + (Math.random() * 360) + 'deg)';
+      });
+      showToast('🕶 Режим анонимности включён');
+    } else {
+      btn.classList.remove('active');
+      btn.textContent = '🕶 Анон';
+      document.querySelectorAll('.person').forEach(el => {
+        const nameEl = el.querySelector('.person-name');
+        const avatarEl = el.querySelector('.avatar');
+        if (el.dataset.origName) nameEl.textContent = el.dataset.origName;
+        if (el.dataset.origInitials) avatarEl.childNodes[0].textContent = '\n        ' + el.dataset.origInitials + '\n        ';
+        avatarEl.style.filter = '';
+      });
+      showToast('Маски сняты!');
+    }
   });
 
   // --- Fountain button ---
